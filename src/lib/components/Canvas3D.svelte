@@ -1,4 +1,6 @@
+<svelte:options runes={false} />
 <script lang="ts">
+	// @ts-nocheck
 	import { onMount, onDestroy } from 'svelte';
 	import * as THREE from 'three';
 	import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';

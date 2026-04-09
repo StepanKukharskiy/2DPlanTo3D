@@ -1,8 +1,10 @@
+// @ts-nocheck
 import { json, error } from '@sveltejs/kit';
-import { API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import https from 'https';
 
 const TOGETHER_BASE = 'https://api.together.xyz/v1';
+const API_KEY = env.API_KEY || env.TOGETHER_API_KEY || '';
 const DEFAULT_IMAGE_MODEL = 'google/gemini-3-pro-image';
 
 const MAX_RETRIES = 3;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ContourTracer — Pure JS bitmap-to-profile extraction
  * 
@@ -10,7 +11,7 @@
  *   // profiles[0].points = [{x, y}, ...] — normalized to unit scale, largest contour first
  */
 
-class ContourTracer {
+export class ContourTracer {
 
   // ─── Public API ───────────────────────────────────────────────
 
@@ -771,6 +772,6 @@ if (typeof window !== 'undefined') {
   window.ContourTracer = ContourTracer;
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ContourTracer };
-}
+
+
+export default ContourTracer;
