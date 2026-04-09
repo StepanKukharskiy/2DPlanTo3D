@@ -113,6 +113,9 @@
 	}
 
 	function toProxyUrl(url: string) {
+		if (!url) return '';
+		if (url.startsWith('/image-proxy?url=')) return url;
+		if (url.startsWith('data:')) return url;
 		return `/image-proxy?url=${encodeURIComponent(url)}`;
 	}
 
@@ -142,13 +145,26 @@
 		return { walls, windows, doors };
 	}
 
-	function loadImage(src: string) {
+	async function loadImage(src: string) {
+		const safeSrc = src.startsWith('http') ? toProxyUrl(src) : src;
+		const response = await fetch(safeSrc);
+		if (!response.ok) {
+			throw new Error(`Could not fetch generated image for contour extraction (${response.status}).`);
+		}
+		const blob = await response.blob();
+		const objectUrl = URL.createObjectURL(blob);
+
 		return new Promise<HTMLImageElement>((resolve, reject) => {
 			const image = new Image();
-			image.crossOrigin = 'anonymous';
-			image.onload = () => resolve(image);
-			image.onerror = () => reject(new Error('Could not load generated image for contour extraction.'));
-			image.src = src;
+			image.onload = () => {
+				URL.revokeObjectURL(objectUrl);
+				resolve(image);
+			};
+			image.onerror = () => {
+				URL.revokeObjectURL(objectUrl);
+				reject(new Error('Could not load generated image for contour extraction.'));
+			};
+			image.src = objectUrl;
 		});
 	}
 
