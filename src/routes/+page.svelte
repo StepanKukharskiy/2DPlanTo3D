@@ -19,6 +19,8 @@
 
 	let floor1Url = '';
 	let floor2Url = '';
+	let floor1SourceUrl = '';
+	let floor2SourceUrl = '';
 
 	let wallContoursFloor1: TraceResult[] = [];
 	let windowContoursFloor1: TraceResult[] = [];
@@ -46,24 +48,26 @@
 				'No text labels, no shadows, no furniture, no dimensions, no perspective.';
 
 			const first = await requestImage(floor1Prompt);
-			floor1Url = first;
+			floor1SourceUrl = first;
+			floor1Url = toProxyUrl(first);
 
 			const floor2Prompt =
 				'Second floor plan variation based on the reference image. Keep exactly same visual language: black walls, green windows, red doors, white background, flat schematic top-down.';
-			const second = await requestImage(floor2Prompt, first);
-			floor2Url = second;
+			const second = await requestImage(floor2Prompt, floor1SourceUrl);
+			floor2SourceUrl = second;
+			floor2Url = toProxyUrl(second);
 
 			({
 				walls: wallContoursFloor1,
 				windows: windowContoursFloor1,
 				doors: doorContoursFloor1
-			} = await extractByClass(first));
+			} = await extractByClass(floor1Url));
 
 			({
 				walls: wallContoursFloor2,
 				windows: windowContoursFloor2,
 				doors: doorContoursFloor2
-			} = await extractByClass(second));
+			} = await extractByClass(floor2Url));
 
 			renderObject = build3DFromContours();
 		} catch (err) {
@@ -76,6 +80,8 @@
 	function resetResults() {
 		floor1Url = '';
 		floor2Url = '';
+		floor1SourceUrl = '';
+		floor2SourceUrl = '';
 		wallContoursFloor1 = [];
 		windowContoursFloor1 = [];
 		doorContoursFloor1 = [];
@@ -89,7 +95,7 @@
 		const response = await fetch('/images', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt: imagePrompt, image: referenceImage })
+			body: JSON.stringify({ prompt: imagePrompt, imageUrl: referenceImage })
 		});
 
 		if (!response.ok) {
@@ -104,6 +110,10 @@
 		}
 
 		return url;
+	}
+
+	function toProxyUrl(url: string) {
+		return `/image-proxy?url=${encodeURIComponent(url)}`;
 	}
 
 	async function extractByClass(src: string) {

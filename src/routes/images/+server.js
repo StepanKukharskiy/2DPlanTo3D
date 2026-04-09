@@ -10,6 +10,11 @@ const DEFAULT_IMAGE_MODEL = 'google/gemini-3-pro-image';
 const MAX_RETRIES = 3;
 const TIMEOUT_MS = 60000; // 60 second timeout for image generation
 
+function arrayBufferToDataUrl(arrayBuffer, contentType = 'image/png') {
+	const base64 = Buffer.from(arrayBuffer).toString('base64');
+	return `data:${contentType};base64,${base64}`;
+}
+
 async function fetchWithRetry(url, payload, retries = MAX_RETRIES) {
 	return new Promise((resolve, reject) => {
 		const data = JSON.stringify(payload);
@@ -93,7 +98,8 @@ export async function POST({ request }) {
 
 		const model = body.model || DEFAULT_IMAGE_MODEL;
 		const prompt = body.prompt || '';
-		const image = body.image; // base64 encoded image
+		const image = body.image; // data URL or base64 encoded image
+		const imageUrl = body.imageUrl; // remote URL to fetch and convert server-side
 
 		// Build payload based on model type
 		const payload = {
@@ -108,12 +114,23 @@ export async function POST({ request }) {
 			payload.height = 1024;
 		}
 
-		// Add reference_images if image provided
+		// Add reference_images if image or imageUrl provided
 		if (image) {
 			// Service expects data URLs with prefix, not raw base64
 			const dataUrl = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
 			payload.reference_images = [dataUrl];
 			console.log('[Images API] Sending reference_images, length:', dataUrl.length);
+		} else if (imageUrl) {
+			console.log('[Images API] Fetching imageUrl for reference image');
+			const imageResponse = await fetch(imageUrl);
+			if (!imageResponse.ok) {
+				throw error(imageResponse.status, 'Failed to fetch reference image URL');
+			}
+			const contentType = imageResponse.headers.get('content-type') || 'image/png';
+			const arrayBuffer = await imageResponse.arrayBuffer();
+			const dataUrl = arrayBufferToDataUrl(arrayBuffer, contentType);
+			payload.reference_images = [dataUrl];
+			console.log('[Images API] Converted imageUrl to reference_images data URL');
 		}
 
 		console.log('[Images API] Payload keys:', Object.keys(payload));
