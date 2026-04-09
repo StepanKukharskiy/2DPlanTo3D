@@ -268,7 +268,7 @@
 		if (deduped.length < 3) return null;
 		const center = getPointsCenter(deduped);
 		const positionX = (center.x - bounds.centerX) * scale;
-		const positionZ = (bounds.centerY - center.y) * scale;
+		const positionZ = (center.y - bounds.centerY) * scale;
 
 		const shape = new THREE.Shape();
 		shape.moveTo((deduped[0].x - center.x) * scale, (center.y - deduped[0].y) * scale);
