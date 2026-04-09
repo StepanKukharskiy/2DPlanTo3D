@@ -197,24 +197,27 @@
 
 	function build3DFromContours() {
 		const group = new THREE.Group();
-		group.rotation.x = -Math.PI / 2;
-		group.position.y = 0;
 
 		const pxToWorld = 0.02;
-		const floorHeight = 3;
+		const floorToFloor = 3.4;
 
-		addFloor(group, wallContoursFloor1, 0, 2.8, '#111111', pxToWorld);
-		addFloor(group, windowContoursFloor1, 0.9, 1.5, '#16a34a', pxToWorld);
-		addFloor(group, doorContoursFloor1, 0, 2.2, '#dc2626', pxToWorld);
+		const allContours = [
+			...wallContoursFloor1,
+			...windowContoursFloor1,
+			...doorContoursFloor1,
+			...wallContoursFloor2,
+			...windowContoursFloor2,
+			...doorContoursFloor2
+		];
+		const bounds = getContourBounds(allContours);
 
-		addFloor(group, wallContoursFloor2, floorHeight, 2.8, '#1f2937', pxToWorld);
-		addFloor(group, windowContoursFloor2, floorHeight + 0.9, 1.5, '#22c55e', pxToWorld);
-		addFloor(group, doorContoursFloor2, floorHeight, 2.2, '#ef4444', pxToWorld);
+		addFloor(group, wallContoursFloor1, 0, 2.8, '#111111', pxToWorld, bounds);
+		addFloor(group, windowContoursFloor1, 0.95, 1.2, '#16a34a', pxToWorld, bounds);
+		addFloor(group, doorContoursFloor1, 0, 2.2, '#dc2626', pxToWorld, bounds);
 
-		const slabMaterial = new THREE.MeshStandardMaterial({ color: '#e5e7eb', metalness: 0.05, roughness: 0.9 });
-		const slab = new THREE.Mesh(new THREE.BoxGeometry(24, 0.15, 24), slabMaterial);
-		slab.position.set(0, -0.1, 0);
-		group.add(slab);
+		addFloor(group, wallContoursFloor2, floorToFloor, 2.8, '#1f2937', pxToWorld, bounds);
+		addFloor(group, windowContoursFloor2, floorToFloor + 0.95, 1.2, '#22c55e', pxToWorld, bounds);
+		addFloor(group, doorContoursFloor2, floorToFloor, 2.2, '#ef4444', pxToWorld, bounds);
 
 		return group;
 	}
@@ -225,18 +228,22 @@
 		yOffset: number,
 		height: number,
 		color: string,
-		scale: number
+		scale: number,
+		bounds: { minX: number; minY: number; maxX: number; maxY: number; centerX: number; centerY: number }
 	) {
 		const material = new THREE.MeshStandardMaterial({
 			color,
 			metalness: 0.08,
-			roughness: 0.85
+			roughness: 0.85,
+			transparent: true,
+			opacity: 0.92
 		});
 
 		for (const contour of contours) {
 			if (!contour.points || contour.points.length < 3) continue;
-			const shape = toShape(contour.points, scale);
-			if (!shape) continue;
+			const contourPlacement = toPlacedShape(contour.points, scale, bounds);
+			if (!contourPlacement) continue;
+			const { shape, positionX, positionZ } = contourPlacement;
 
 			const geometry = new THREE.ExtrudeGeometry(shape, {
 				depth: height,
@@ -244,26 +251,81 @@
 				curveSegments: 2
 			});
 			const mesh = new THREE.Mesh(geometry, material);
-			mesh.position.y = yOffset;
+			mesh.rotation.x = -Math.PI / 2;
+			mesh.position.set(positionX, yOffset, positionZ);
 			mesh.castShadow = true;
 			mesh.receiveShadow = true;
 			group.add(mesh);
 		}
 	}
 
-	function toShape(points: Array<{ x: number; y: number }>, scale: number) {
+	function toPlacedShape(
+		points: Array<{ x: number; y: number }>,
+		scale: number,
+		bounds: { minX: number; minY: number; maxX: number; maxY: number; centerX: number; centerY: number }
+	) {
 		const deduped = removeNearDuplicates(points);
 		if (deduped.length < 3) return null;
-		const centerX = deduped.reduce((sum, p) => sum + p.x, 0) / deduped.length;
-		const centerY = deduped.reduce((sum, p) => sum + p.y, 0) / deduped.length;
+		const center = getPointsCenter(deduped);
+		const positionX = (center.x - bounds.centerX) * scale;
+		const positionZ = (bounds.centerY - center.y) * scale;
 
 		const shape = new THREE.Shape();
-		shape.moveTo((deduped[0].x - centerX) * scale, (deduped[0].y - centerY) * scale);
+		shape.moveTo((deduped[0].x - center.x) * scale, (center.y - deduped[0].y) * scale);
 		for (let i = 1; i < deduped.length; i++) {
-			shape.lineTo((deduped[i].x - centerX) * scale, (deduped[i].y - centerY) * scale);
+			shape.lineTo((deduped[i].x - center.x) * scale, (center.y - deduped[i].y) * scale);
 		}
 		shape.closePath();
-		return shape;
+		return { shape, positionX, positionZ };
+	}
+
+	function getPointsCenter(points: Array<{ x: number; y: number }>) {
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const point of points) {
+			minX = Math.min(minX, point.x);
+			minY = Math.min(minY, point.y);
+			maxX = Math.max(maxX, point.x);
+			maxY = Math.max(maxY, point.y);
+		}
+
+		return {
+			x: (minX + maxX) / 2,
+			y: (minY + maxY) / 2
+		};
+	}
+
+	function getContourBounds(contours: TraceResult[]) {
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const contour of contours) {
+			for (const point of contour.points || []) {
+				minX = Math.min(minX, point.x);
+				minY = Math.min(minY, point.y);
+				maxX = Math.max(maxX, point.x);
+				maxY = Math.max(maxY, point.y);
+			}
+		}
+
+		if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+			minX = -1;
+			minY = -1;
+			maxX = 1;
+			maxY = 1;
+		}
+
+		return {
+			minX,
+			minY,
+			maxX,
+			maxY,
+			centerX: (minX + maxX) / 2,
+			centerY: (minY + maxY) / 2
+		};
 	}
 
 	function removeNearDuplicates(points: Array<{ x: number; y: number }>) {
@@ -333,7 +395,7 @@
 	<section class="viewer">
 		<h2>3D Extrusion View (three.js)</h2>
 		<div class="canvas-wrap">
-			<Canvas3D renderObject={renderObject} showAxes={false} />
+			<Canvas3D renderObject={renderObject} showAxes={false} showGrid={false} />
 		</div>
 	</section>
 </main>
