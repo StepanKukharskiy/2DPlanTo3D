@@ -355,13 +355,19 @@
 	<section class="panel">
 		<h1>2D Plan → 3D House</h1>
 		<p>Enter a prompt and generate a color-coded floor plan pair, contour extraction, and 3D extrusions.</p>
+		<p class="model-note">Image generation model: <code>google/flash-image-2.5</code></p>
 		<div class="form-row">
 			<textarea
 				bind:value={prompt}
 				rows="3"
 				placeholder="Example: compact two-storey house with staircase core and balcony"
 			></textarea>
-			<button on:click={generate} disabled={isLoading} aria-label={isLoading ? 'Generating plan' : 'Generate plan'}>
+			<button
+				class="generate-button"
+				on:click={generate}
+				disabled={isLoading}
+				aria-label={isLoading ? 'Generating plan' : 'Generate plan'}
+			>
 				{isLoading ? '⏳' : '✨'}
 			</button>
 		</div>
@@ -431,10 +437,10 @@
 	}
 
 	.form-row {
-		display: grid;
-		grid-template-columns: 1fr auto;
+		display: flex;
+		flex-direction: column;
 		gap: 0.8rem;
-		align-items: start;
+		align-items: flex-start;
 	}
 
 	textarea {
@@ -455,6 +461,16 @@
 		color: white;
 		font-weight: 600;
 		cursor: pointer;
+	}
+
+	.generate-button {
+		min-width: 56px;
+	}
+
+	.model-note {
+		margin: 0.2rem 0 0.6rem;
+		font-size: 0.92rem;
+		color: #334155;
 	}
 
 	button:disabled {
@@ -495,10 +511,6 @@
 
 	@media (max-width: 960px) {
 		.results-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.form-row {
 			grid-template-columns: 1fr;
 		}
 	}
