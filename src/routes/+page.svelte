@@ -299,7 +299,9 @@
 				rows="3"
 				placeholder="Example: compact two-storey house with staircase core and balcony"
 			></textarea>
-			<button on:click={generate} disabled={isLoading}>{isLoading ? 'Generating...' : 'Generate'}</button>
+			<button on:click={generate} disabled={isLoading} aria-label={isLoading ? 'Generating plan' : 'Generate plan'}>
+				{isLoading ? '⏳' : '✨'}
+			</button>
 		</div>
 		{#if errorMessage}
 			<p class="error">{errorMessage}</p>
